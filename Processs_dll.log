@@ -1,0 +1,41 @@
+﻿  proc.cpp
+C:\Users\yuval\source\repos\Processs_dll\Processs_dll\proc.cpp(15,6): warning C4273: 'isPartOf': inconsistent dll linkage
+  (compiling source file '/proc.cpp')
+  C:\Users\yuval\source\repos\Processs_dll\Processs_dll\Header.h(26,33):
+  see previous definition of 'isPartOf'
+  
+C:\Users\yuval\source\repos\Processs_dll\Processs_dll\proc.cpp(23,6): warning C4273: 'IsPrivilegeEnabled': inconsistent dll linkage
+  (compiling source file '/proc.cpp')
+  C:\Users\yuval\source\repos\Processs_dll\Processs_dll\Header.h(28,33):
+  see previous definition of 'IsPrivilegeEnabled'
+  
+C:\Users\yuval\source\repos\Processs_dll\Processs_dll\proc.cpp(46,6): warning C4273: 'IsProcessElevated': inconsistent dll linkage
+  (compiling source file '/proc.cpp')
+  C:\Users\yuval\source\repos\Processs_dll\Processs_dll\Header.h(30,33):
+  see previous definition of 'IsProcessElevated'
+  
+C:\Users\yuval\source\repos\Processs_dll\Processs_dll\proc.cpp(47,10): warning C4101: 'isCritical': unreferenced local variable
+  (compiling source file '/proc.cpp')
+  
+C:\Users\yuval\source\repos\Processs_dll\Processs_dll\proc.cpp(96,11): warning C4273: 'getProcData': inconsistent dll linkage
+  (compiling source file '/proc.cpp')
+  C:\Users\yuval\source\repos\Processs_dll\Processs_dll\Header.h(24,38):
+  see previous definition of 'getProcData'
+  
+C:\Users\yuval\source\repos\Processs_dll\Processs_dll\proc.cpp(150,23): warning C4018: '<': signed/unsigned mismatch
+  (compiling source file '/proc.cpp')
+  
+C:\Users\yuval\source\repos\Processs_dll\Processs_dll\proc.cpp(165,8): warning C4273: 'DisableAllPrivs': inconsistent dll linkage
+  (compiling source file '/proc.cpp')
+  C:\Users\yuval\source\repos\Processs_dll\Processs_dll\Header.h(34,35):
+  see previous definition of 'DisableAllPrivs'
+  
+C:\Users\yuval\source\repos\Processs_dll\Processs_dll\proc.cpp(191,6): warning C4273: 'closeProc': inconsistent dll linkage
+  (compiling source file '/proc.cpp')
+  C:\Users\yuval\source\repos\Processs_dll\Processs_dll\Header.h(32,33):
+  see previous definition of 'closeProc'
+  
+C:\Users\yuval\source\repos\Processs_dll\Processs_dll\proc.cpp(161): warning C4172: returning address of local variable or temporary: tuple
+  Processs_dll.vcxproj -> C:\Users\yuval\source\repos\Processs_dll\x64\Debug\Processs_dll.dll
+  'pwsh.exe' is not recognized as an internal or external command,
+  operable program or batch file.
