@@ -4,6 +4,7 @@ import update_DB
 import options_comp
 from consts import *
 from options_comp import Ui_Form
+import hash_api
 
 
 class Ui_MainWindow(QtWidgets.QWidget):
@@ -71,14 +72,14 @@ class Ui_MainWindow(QtWidgets.QWidget):
         self.page_num.setAlignment(QtCore.Qt.AlignCenter)
         self.page_num.setObjectName("page_num")
 
-        self.scan_button = QtWidgets.QPushButton(self.centralwidget)
-        self.scan_button.setGeometry(QtCore.QRect(self.scan_x, self.scan_y, 141, 81))
+        self.options_button = QtWidgets.QPushButton(self.centralwidget)
+        self.options_button.setGeometry(QtCore.QRect(self.scan_x, self.scan_y, 141, 81))
         font = QtGui.QFont()
         font.setPointSize(24)
         font.setBold(True)
         font.setWeight(75)
-        self.scan_button.setFont(font)
-        self.scan_button.setObjectName("pushButton")
+        self.options_button.setFont(font)
+        self.options_button.setObjectName("pushButton")
 
         self.menubar = QtWidgets.QMenuBar(MainWindow)
         self.menubar.setGeometry(QtCore.QRect(0, 0, 1093, 21))
@@ -107,7 +108,7 @@ class Ui_MainWindow(QtWidgets.QWidget):
         print(1)
         self.LeftArrow.clicked.connect(lambda: self.left_page(MainWindow))
         self.RightArrow.clicked.connect(lambda: self.right_page(MainWindow))
-        self.scan_button.clicked.connect(lambda: self.scan(MainWindow))
+        self.options_button.clicked.connect(lambda: self.show_options())
         print(2)
 
     def draw_computer(self, i):
@@ -148,7 +149,7 @@ class Ui_MainWindow(QtWidgets.QWidget):
         self.LeftArrow.setText(_translate("MainWindow", "..."))
         self.RightArrow.setText(_translate("MainWindow", "..."))
         self.page_num.setText(_translate("MainWindow", "1"))
-        self.scan_button.setText(_translate("MainWindow", "Scan"))
+        self.options_button.setText(_translate("MainWindow", "Options"))
 
     def select_comp(self, button):
         self.window = QtWidgets.QMainWindow()
@@ -193,12 +194,11 @@ class Ui_MainWindow(QtWidgets.QWidget):
                 i.setText(keys_list[6 * (self.current_page - 1) + index])
                 self.images[index].setPixmap(QtGui.QPixmap(self.get_correct_pic((self.current_page - 1) * 6 + index)))
 
-    def scan(self, MainWindow):
-        update_DB.main()
-        comp_dict = update_DB.get_dict_data()
-        num_of_comps = len(list(comp_dict.keys()))
-
-        self.setupUi(MainWindow, num_of_comps, comp_dict)
+    def show_options(self):
+        self.form = OptionsWindow()
+        self.window = QtWidgets.QMainWindow()
+        self.form.set_up_ui(self.window)
+        self.window.show()
 
 
 def start_wins(comp_dict):
@@ -213,6 +213,40 @@ def start_wins(comp_dict):
     MainWindow.show()
     sys.exit(app.exec_())
 
+
+class OptionsWindow(QtWidgets.QWidget):
+    def set_up_ui(self, form):
+        self.form = form
+        self.form.setObjectName("Form")
+        self.form.resize(756, 606)
+
+        font = QtGui.QFont()
+        font.setPointSize(18)
+        font.setBold(True)
+        self.select_scan = QtWidgets.QPushButton(self.form)
+        self.select_scan.setGeometry(QtCore.QRect(180, 110, 400, 80))
+        self.select_scan.setText("Scan")
+        self.select_scan.setFont(font)
+        self.select_scan.clicked.connect(self.scan)
+
+        self.select_hashes = QtWidgets.QPushButton(self.form)
+        self.select_hashes.setGeometry(QtCore.QRect(180, 200, 400, 80))
+        self.select_hashes.setText("Add hash file")
+        self.select_hashes.setFont(font)
+        self.select_hashes.clicked.connect(self.update_hash)
+
+    def scan(self):
+        update_DB.main()
+        MainWindow = QtWidgets.QMainWindow()
+        comp_dict = update_DB.get_dict_data()
+        num_of_comps = len(list(comp_dict.keys()))
+        self.ui_main = Ui_MainWindow()
+        self.ui_main.setupUi(MainWindow, num_of_comps, comp_dict)
+
+    def update_hash(self):
+        fine_name = QtWidgets.QFileDialog.getOpenFileName(self)[0]
+        md5_sum = hash_api.calculate_hash(fine_name)
+        hash_api.update_hash_db(md5_sum)
 
 if __name__ == "__main__":
     comp_dict = update_DB.get_dict_data()

@@ -46,4 +46,5 @@ def close_proc(pid):
     lib.closeProc.restypes = ctypes.c_int
     lib.closeProc(pid)
 
-disable_privs(15092)
+
+

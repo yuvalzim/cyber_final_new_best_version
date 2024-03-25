@@ -63,8 +63,6 @@ def get_dict_data():
     return comps_dict
 
 
-
-
 def main():
     state = 0  # 1 - Computer on. 0 - Computer off
 
@@ -90,10 +88,6 @@ def main():
             state = 0
         cursor.execute(UPDATE_ROW_QUERY, (state, index + 1))
     connection.commit()
-
-
-
-
 
 
 if __name__ == '__main__':
