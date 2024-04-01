@@ -2,8 +2,7 @@ import ctypes
 import sys
 import enable_py_privs
 import faulthandler
-
-PROCESS_CHECK_PATH = r"D:\Processs_dll.dll"
+from consts import *
 
 
 class Proc(ctypes.Structure):

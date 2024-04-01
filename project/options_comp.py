@@ -1,10 +1,12 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys
 import process_check
+from consts import *
 
 
 class Ui_Form(object):
-    def setupUi(self, form, ip):
+    def setupUi(self, form, ip, sock):
+        self.sock = sock
         self.form = form
         self.ip = ip
         self.form.setObjectName("Form")
@@ -51,10 +53,12 @@ class Ui_Form(object):
         self.widgets.show()
 
     def show_processes(self):
+        self.sock.recv(BUFFER_SIZE)
+        self.sock.send("PROCESS CHECK".encode())
         print(self.widgets.__len__())
         self.form.close()
         self.proc_win = ProcessWin()
-        self.proc_win.start_ui(self.widgets)
+        self.proc_win.start_ui(self.widgets, self.sock)
         self.widgets.addWidget(self.proc_win)
         self.widgets.setCurrentIndex(self.widgets.currentIndex() + 1)
 
@@ -68,9 +72,18 @@ class Ui_Form(object):
 
 
 class ProcessWin(QtWidgets.QWidget):
-    def start_ui(self, widget):
+    def start_ui(self, widget, sock):
+        self.sock = sock
         self.widget = widget
-        self.proc_dict = process_check.get_proc_dict()
+        data = self.sock.recv(BUFFER_SIZE).decode().split(",")
+        proc = data[0]
+        id = proc[proc.find(".exe") + 4:]
+        print(len(id))
+        print(id)
+
+        data = [(proc[:proc.find(".exe") + 4], int(proc[proc.find(".exe") + 4:])) for proc in data]
+        self.proc_dict = {k: v for k, v in data}
+        print(self.proc_dict)
         font = QtGui.QFont()
         font.setPointSize(16)
 

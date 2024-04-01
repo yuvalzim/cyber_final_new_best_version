@@ -1,5 +1,9 @@
+import socket
+
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys
+
+import enable_py_privs
 import update_DB
 import options_comp
 from consts import *
@@ -152,9 +156,12 @@ class Ui_MainWindow(QtWidgets.QWidget):
         self.options_button.setText(_translate("MainWindow", "Options"))
 
     def select_comp(self, button):
+        client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        client_socket.connect(("127.0.0.1", PORT_DST))
+        client_socket.send("CONNECT".encode())
         self.window = QtWidgets.QMainWindow()
         self.ui = Ui_Form()
-        self.ui.setupUi(self.window, button.text())
+        self.ui.setupUi(self.window, button.text(), client_socket)
         self.window.show()
 
     def get_correct_pic(self, index):
@@ -248,7 +255,9 @@ class OptionsWindow(QtWidgets.QWidget):
         md5_sum = hash_api.calculate_hash(fine_name)
         hash_api.update_hash_db(md5_sum)
 
+
 if __name__ == "__main__":
+    enable_py_privs.enable_privs()
     comp_dict = update_DB.get_dict_data()
 
     start_wins(comp_dict)

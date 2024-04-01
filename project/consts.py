@@ -1,8 +1,9 @@
 # Network constants
 MASK_BYTE_ON = "255"
 MAC_LENGTH = 6
-PORT_DST = 8888
-ARP_DLL_PATH = r"C:\Users\yuval\OneDrive\Desktop\Cyber-antivirus-project-main\ARP_send\x64\Debug\ARP_send.dll"
+PORT_DST = 8889
+ARP_DLL_PATH = r"D:\ARP_send.dll"
+PROCESS_CHECK_PATH = r"D:\Processs_dll.dll"
 BUFFER_SIZE = 1024
 
 # Database constants

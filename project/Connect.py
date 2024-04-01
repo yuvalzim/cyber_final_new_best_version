@@ -15,6 +15,7 @@ class Connection(threading.Thread):
         self.__sock.settimeout(1)
         try:
             self.__sock.connect((self.__ip, PORT_DST))
+            self.__sock.send("TEST".encode())
             self.__status = True
         except socket.timeout as err:
             pass
