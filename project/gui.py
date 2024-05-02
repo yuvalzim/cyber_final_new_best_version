@@ -1,14 +1,18 @@
 import socket
-
+import threading
+import protocol
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys
-
 import enable_py_privs
 import update_DB
 import options_comp
 from consts import *
 from options_comp import Ui_Form
 import hash_api
+from encrypt import *
+from Crypto import Random
+from Crypto.Cipher import AES, PKCS1_OAEP
+import os
 
 
 class Ui_MainWindow(QtWidgets.QWidget):
@@ -156,13 +160,23 @@ class Ui_MainWindow(QtWidgets.QWidget):
         self.options_button.setText(_translate("MainWindow", "Options"))
 
     def select_comp(self, button):
-        client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        client_socket.connect(("127.0.0.1", PORT_DST))
-        client_socket.send("CONNECT".encode())
+        self.start_encryption()
         self.window = QtWidgets.QMainWindow()
         self.ui = Ui_Form()
-        self.ui.setupUi(self.window, button.text(), client_socket)
+        self.ui.setupUi(self.window, button.text(), self.client_socket, self.obj)
         self.window.show()
+
+    def start_encryption(self):
+        self.key = Random.new().read(BLOCK_SIZE)
+        self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.client_socket.connect(("127.0.0.1", PORT_DST))
+        self.client_socket.send("CONNECT".encode())
+        self.obj = Encrypt(self.key)
+        server_key = self.client_socket.recv(BUFFER_SIZE)
+        encryptor = PKCS1_OAEP.new(RSA.importKey(server_key))
+        encrypted = encryptor.encrypt(self.key)
+        self.client_socket.send(encrypted)
+        self.client_socket.recv(BUFFER_SIZE)
 
     def get_correct_pic(self, index):
         if list(self.comp_dict.values())[int(index)] == 1:
@@ -252,8 +266,12 @@ class OptionsWindow(QtWidgets.QWidget):
 
     def update_hash(self):
         fine_name = QtWidgets.QFileDialog.getOpenFileName(self)[0]
+        if not fine_name:
+            return
         md5_sum = hash_api.calculate_hash(fine_name)
-        hash_api.update_hash_db(md5_sum)
+        update_hash_thread = threading.Thread(target=hash_api.update_hash_db, args=[md5_sum])
+        update_hash_thread.start()
+        #hash_api.update_hash_db(md5_sum)
 
 
 if __name__ == "__main__":

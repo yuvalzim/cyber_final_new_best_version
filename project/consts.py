@@ -23,7 +23,18 @@ fire_base_config = {
     "measurementId": "G-MXJ1TWB808",
     "databaseURL" : ""
 }
+HASHES_FILE_NAME = "hash.txt"
 
 # GUI constants
 X_DRAW_START = 100
 Y_DRAW_START = 130
+
+# ENCRYPTION CONSTANTS
+BLOCK_SIZE = 16
+PAD = b'\x00'
+
+# PROTOCOL CONSTS
+LENGTH_FIELD_SIZE = 8
+
+# REAL TIME MONITORING
+RTM_PATH = "rtm.exe"

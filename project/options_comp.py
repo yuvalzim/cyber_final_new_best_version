@@ -1,11 +1,15 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys
+import pickle
 import process_check
 from consts import *
+import protocol as protocol
+import time
 
 
 class Ui_Form(object):
-    def setupUi(self, form, ip, sock):
+    def setupUi(self, form, ip, sock, obj):
+        self.obj = obj
         self.sock = sock
         self.form = form
         self.ip = ip
@@ -30,6 +34,7 @@ class Ui_Form(object):
         font.setPointSize(16)
         self.pushButton.setFont(font)
         self.pushButton.setObjectName("pushButton")
+        self.pushButton.clicked.connect(self.initiate_scan)
         self.pushButton_2 = QtWidgets.QPushButton(self.form)
         self.pushButton_2.setGeometry(QtCore.QRect(100, 230, 541, 81))
         font = QtGui.QFont()
@@ -52,13 +57,24 @@ class Ui_Form(object):
         self.widgets.setFixedHeight(606)
         self.widgets.show()
 
+    def initiate_scan(self):
+        request = self.obj.encryption("START_SCAN")
+        protocol.send_data(self.sock, request)
+        disc_names_encrypted = self.sock.recv(BUFFER_SIZE)
+        disc_names_pickled = self.obj.decryption(disc_names_encrypted)
+        disc_names = pickle.loads(disc_names_pickled)
+        print(disc_names)
+        self.scan_win = ScanWin()
+        self.scan_win.start_ui(self.widgets, self.sock, self.obj, disc_names)
+        self.widgets.addWidget(self.scan_win)
+        self.widgets.setCurrentIndex(self.widgets.currentIndex() + 1)
+
     def show_processes(self):
-        self.sock.recv(BUFFER_SIZE)
-        self.sock.send("PROCESS CHECK".encode())
+        protocol.send_data(self.sock, self.obj.encryption("PROCESS_CHECK"))
         print(self.widgets.__len__())
         self.form.close()
         self.proc_win = ProcessWin()
-        self.proc_win.start_ui(self.widgets, self.sock)
+        self.proc_win.start_ui(self.widgets, self.sock, self.obj)
         self.widgets.addWidget(self.proc_win)
         self.widgets.setCurrentIndex(self.widgets.currentIndex() + 1)
 
@@ -66,24 +82,270 @@ class Ui_Form(object):
         _translate = QtCore.QCoreApplication.translate
         Form.setWindowTitle(_translate("Form", "Form"))
         self.label.setText(_translate("Form", f"Options for {self.ip}"))
-        self.pushButton.setText(_translate("Form", "Scan windows files"))
+        self.pushButton.setText(_translate("Form", "Scan files"))
         self.pushButton_2.setText(_translate("Form", "Check camera and microphone"))
         self.pushButton_3.setText(_translate("Form", "Check processes"))
 
 
-class ProcessWin(QtWidgets.QWidget):
-    def start_ui(self, widget, sock):
+class ScanWin(QtWidgets.QWidget):
+    def start_ui(self, widget, sock, obj, content):
+        self.content = content
+        self.current_content = ""
+        self.obj = obj
         self.sock = sock
         self.widget = widget
-        data = self.sock.recv(BUFFER_SIZE).decode().split(",")
-        proc = data[0]
-        id = proc[proc.find(".exe") + 4:]
-        print(len(id))
-        print(id)
+        font = QtGui.QFont()
+        font.setPointSize(16)
 
-        data = [(proc[:proc.find(".exe") + 4], int(proc[proc.find(".exe") + 4:])) for proc in data]
-        self.proc_dict = {k: v for k, v in data}
-        print(self.proc_dict)
+        self.selected_index = -1
+        self.formlayout = QtWidgets.QFormLayout()
+        self.group_box = QtWidgets.QGroupBox("Folder content:")
+        self.group_box.setAlignment(QtCore.Qt.AlignCenter)
+        self.group_box.setFont(font)
+
+        self.label_list = []
+        self.button_list = []
+        for i in range(len(self.content)):
+            self.draw_box(font, i)
+
+        self.group_box.setLayout(self.formlayout)
+        self.scroll = QtWidgets.QScrollArea()
+        self.scroll.setWidget(self.group_box)
+        self.scroll.setWidgetResizable(True)
+        self.scroll.setFixedHeight(400)
+
+        self.layout = QtWidgets.QVBoxLayout()
+        self.layout.addWidget(self.scroll)
+        self.setLayout(self.layout)
+
+        self.back_button = QtWidgets.QPushButton(self)
+        self.back_button.setGeometry(QtCore.QRect(325, 520, 100, 50))
+        self.back_button.setText("Go back")
+        self.back_button.clicked.connect(self.go_back)
+
+        self.scan_button = QtWidgets.QPushButton(self)
+        self.scan_button.setGeometry(QtCore.QRect(150, 520, 100, 50))
+        self.scan_button.setText("Scan")
+        self.scan_button.clicked.connect(lambda: self.scan_folder())
+
+        self.select_button = QtWidgets.QPushButton(self)
+        self.select_button.setGeometry(QtCore.QRect(500, 520, 100, 50))
+        self.select_button.setText("Select")
+        self.select_button.clicked.connect(lambda: self.select_folder())
+
+    def go_back(self):
+        protocol.send_data(self.sock, self.obj.encryption("BACK"))
+        self.close()
+        self.widget.removeWidget(self)
+        self.widget.setCurrentIndex(self.widget.currentIndex() - 1)
+
+    def select_folder(self):
+        msg = f"SELECT_DIR {self.current_content}"
+        encrypted_msg = self.obj.encryption(msg)
+        protocol.send_data(self.sock, encrypted_msg)
+        folder_content_encrypted = protocol.get_data(self.sock)
+        bytes_content = self.obj.decryption(folder_content_encrypted)
+        folder_content = pickle.loads(bytes_content)
+        if folder_content == "START_SCAN":
+            self.scan_loading()
+            return
+        self.new_content_win(folder_content)
+
+    def new_content_win(self, content):
+        self.scan_win = ScanWin()
+        self.scan_win.start_ui(self.widget, self.sock, self.obj, content)
+        self.widget.addWidget(self.scan_win)
+        self.widget.setCurrentIndex(self.widget.currentIndex() + 1)
+        self.widget.removeWidget(self)
+        self.close()
+
+    def scan_folder(self):
+        msg = f"SCAN_DIR {self.current_content}"
+        encrypted_msg = self.obj.encryption(msg)
+        protocol.send_data(self.sock, encrypted_msg)
+        folder_content_encrypted = protocol.get_data(self.sock)
+        bytes_content = self.obj.decryption(folder_content_encrypted)
+        folder_content = pickle.loads(bytes_content)
+        self.scan_loading()
+
+    def scan_loading(self):
+        loading = loading_win()
+        loading.start_ui(self.widget, self.sock, self.obj, self.current_content)
+        self.widget.addWidget(loading)
+
+        self.widget.setCurrentIndex(self.widget.currentIndex() + 1)
+        self.widget.removeWidget(self)
+        self.close()
+
+    def draw_box(self, font, i):
+        self.label_list.append(QtWidgets.QLabel(f"Name: {self.content[i]}"))
+        self.button_list.append(QtWidgets.QPushButton(f"Select"))
+        self.label_list[i].setFont(font)
+        self.button_list[i].setFont(font)
+        self.button_list[i].setStyleSheet("background-color : white")
+        self.button_list[i].clicked.connect(lambda: self.highlight_button(i))
+        self.formlayout.addRow(self.label_list[i], self.button_list[i])
+
+    def highlight_button(self, i):
+        if self.selected_index != -1:
+            self.button_list[self.selected_index].setStyleSheet("background-color : white")
+        self.button_list[i].setStyleSheet("background-color : blue")
+        self.selected_index = i
+        self.current_content = self.content[self.selected_index]
+
+
+class loading_win(QtWidgets.QWidget):
+    def start_ui(self, widget, sock, obj, content):
+        self.obj = obj
+        self.sock = sock
+        self.widget = widget
+        self.content = content
+        font = QtGui.QFont()
+        font.setPointSize(16)
+        font.setBold(True)
+        self.headline = QtWidgets.QLabel(self)
+        self.headline.setGeometry(275, 100, 500, 50)
+        self.headline.setText(f"Do you want to scan {content} ?")
+        self.headline.setFont(font)
+
+        self.check_box = QtWidgets.QCheckBox(self)
+        self.check_box.setText("Scan sub directories")
+        self.check_box.setGeometry(300, 250, 200, 20)
+
+        self.button = QtWidgets.QPushButton(self)
+        self.button.setGeometry(270, 300, 200, 50)
+        self.button.setText("Start scan")
+        self.button.clicked.connect(self.start_scan)
+
+        self.back_button = QtWidgets.QPushButton(self)
+        self.back_button.setGeometry(QtCore.QRect(325, 520, 100, 50))
+        self.back_button.setText("Go back")
+        self.back_button.clicked.connect(self.go_back)
+
+    def go_back(self):
+        protocol.send_data(self.sock, self.obj.encryption("BACK"))
+        self.close()
+        self.widget.removeWidget(self)
+        self.widget.setCurrentIndex(self.widget.currentIndex() - 1)
+
+    def start_scan(self):
+        msg = self.content
+        if self.check_box.isChecked():
+            msg += " SUB"
+        protocol.send_data(self.sock, self.obj.encryption(msg))
+        self.pbar = QtWidgets.QProgressBar(self)
+        self.pbar.setGeometry(300, 200, 200, 25)
+        self.pbar.setValue(0)  # Set initial value to 0
+        self.pbar.show()  # Show the progress bar
+        QtWidgets.QApplication.processEvents()  # Process events to ensure UI updates
+
+        while True:
+            data = self.obj.decryption(protocol.get_data(self.sock)).decode()
+            if not data.isnumeric():
+                break
+            else:
+                self.pbar.setValue(int(data))
+                QtWidgets.QApplication.processEvents()  # Process events to ensure UI updates
+
+        self.pbar.close()
+        self.button.close()
+        self.check_box.close()
+        self.headline.close()
+
+        self.files = data.split(" ")[:-1]
+
+        font = QtGui.QFont()
+        font.setPointSize(16)
+
+        self.formlayout = QtWidgets.QFormLayout()
+        self.group_box = QtWidgets.QGroupBox("Files:")
+        self.group_box.setAlignment(QtCore.Qt.AlignCenter)
+        self.group_box.setFont(font)
+
+        self.label_list = []
+        self.button_list = []
+        for i in range(len(self.files)):
+            self.draw_box(font, i)
+
+        self.group_box.setLayout(self.formlayout)
+        self.scroll = QtWidgets.QScrollArea()
+        self.scroll.setWidget(self.group_box)
+        self.scroll.setWidgetResizable(True)
+        self.scroll.setFixedHeight(400)
+
+        self.layout = QtWidgets.QVBoxLayout()
+        self.layout.addWidget(self.scroll)
+        self.setLayout(self.layout)
+
+    def draw_box(self, font, i):
+        self.label_list.append(QtWidgets.QLabel(f"File: {self.files[i]}"))
+        self.button_list.append(QtWidgets.QPushButton("Select"))
+        self.label_list[i].setFont(font)
+        self.button_list[i].setFont(font)
+        self.button_list[i].clicked.connect(lambda: self.file_select(i))
+        self.formlayout.addRow(self.label_list[i], self.button_list[i])
+
+    def file_select(self, i):
+        self.file_opt = File_options()
+        self.file_opt.start_ui(self.widget, self.sock, self.obj, self.files[i])
+        self.widget.addWidget(self.file_opt)
+        self.widget.setCurrentIndex(self.widget.currentIndex() + 1)
+        print(self.files[i])
+
+
+class File_options(QtWidgets.QWidget):
+    def start_ui(self, widget, socket, obj, file):
+        self.widget = widget
+        self.obj = obj
+        self.socket = socket
+        self.file_name = file
+        self.proc_lable = QtWidgets.QLabel(self)
+        self.proc_lable.setGeometry(QtCore.QRect(80, 40, 600, 50))
+        self.proc_lable.setText(f"File: {file}")
+        font = QtGui.QFont()
+        font.setPointSize(18)
+        font.setBold(True)
+        font.setWeight(75)
+        font.setStrikeOut(False)
+        font.setKerning(True)
+        self.proc_lable.setAlignment(QtCore.Qt.AlignCenter)
+        self.proc_lable.setFont(font)
+
+        self.back_button = QtWidgets.QPushButton(self)
+        self.back_button.setGeometry(QtCore.QRect(325, 520, 100, 50))
+        self.back_button.setText("Go back")
+        self.back_button.clicked.connect(self.go_back)
+
+        self.reduce_privs_button = QtWidgets.QPushButton(self)
+        self.reduce_privs_button.setGeometry(120, 330, 200, 50)
+        self.reduce_privs_button.setText("Delete file")
+        self.reduce_privs_button.clicked.connect(self.delete_file)
+
+        self.close_proc_button = QtWidgets.QPushButton(self)
+        self.close_proc_button.setGeometry(425, 330, 200, 50)
+        self.close_proc_button.setText("Move to quarantine")
+        self.close_proc_button.clicked.connect(self.quarantine_file)
+
+    def delete_file(self):
+        print("delete")
+
+    def quarantine_file(self):
+        print("quarantine")
+
+    def go_back(self):
+        self.widget.setCurrentIndex(self.widget.currentIndex() - 1)
+        self.widget.removeWidget(self)
+
+
+
+
+class ProcessWin(QtWidgets.QWidget):
+    def start_ui(self, widget, sock, obj):
+        self.obj = obj
+        self.sock = sock
+        self.widget = widget
+        data = self.obj.decryption(self.sock.recv(BUFFER_SIZE))
+        self.proc_dict = pickle.loads(data)
         font = QtGui.QFont()
         font.setPointSize(16)
 
@@ -123,7 +385,8 @@ class ProcessWin(QtWidgets.QWidget):
 
     def clicked_proc(self, index):
         self.proc_opt = ProcessOptions()
-        self.proc_opt.start_ui(self.widget, list(self.proc_dict.keys())[index], list(self.proc_dict.values())[index])
+        self.proc_opt.start_ui(self.widget, list(self.proc_dict.keys())[index],
+                               int(list(self.proc_dict.values())[index]), self.sock, self.obj)
         self.widget.addWidget(self.proc_opt)
         self.widget.setCurrentIndex(self.widget.currentIndex() + 1)
 
@@ -134,8 +397,10 @@ class ProcessWin(QtWidgets.QWidget):
 
 
 class ProcessOptions(QtWidgets.QWidget):
-    def start_ui(self, widget, pname, pid):
+    def start_ui(self, widget, pname, pid, socket, obj):
         self.widget = widget
+        self.obj = obj
+        self.socket = socket
         self.pname = pname
         self.pid = pid
 
@@ -171,7 +436,8 @@ class ProcessOptions(QtWidgets.QWidget):
         self.widget.removeWidget(self)
 
     def reduce_privs(self):
-        process_check.disable_privs(self.pid)
+        protocol.send_data(self.socket, self.obj.encryption(f"REDUCE_PRIVS {str(self.pid)}"))
+        # process_check.disable_privs(self.pid)
 
     def close_proc(self):
-        process_check.close_proc(self.pid)
+        protocol.send_data(self.socket, self.obj.encryption(f"CLOSE_PROC {str(self.pid)}"))
